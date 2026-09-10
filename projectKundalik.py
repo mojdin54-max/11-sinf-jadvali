@@ -5,7 +5,8 @@ from aiogram.types import Message, FSInputFile, ReplyKeyboardMarkup, KeyboardBut
 from aiogram.filters import CommandStart, Command
 from aiohttp import web
 
-TOKEN = "8717230475:AAGKwQxqqfMhwVq8f1kG01AAOKKIpvxOu4c"
+# ЗАМЕНИТЕ ЭТОТ ТОКЕН! Получите новый через @BotFather -> /revoke
+TOKEN = "8717230475:AAHucrGEeKfmFJW3MdhBiIqIiU_9SOdyIyM"
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
@@ -60,21 +61,21 @@ async def send_schedule(message: Message):
         else:
             await message.answer(f"⚠️ {day_name} kuni uchun rasm topilmadi! (`img/{image_file}` faylini tekshiring)")
 
-# Простейший веб-сервер для удовлетворения требований Render Web Service
+# Веб-сервер заглушка для Render Web Service
 async def handle(request):
-    return web.Response(text="Bot is running!")
+    return web.Response(text="Bot runs 24/7!")
 
 async def start_web_server():
     app = web.Application()
     app.router.add_get('/', handle)
-    runner = web.AppRunner(app)
-    await runner.setup()
+    runner = web.ApplicationRunner if hasattr(web, 'ApplicationRunner') else web.AppRunner
+    r = runner(app)
+    await r.setup()
     port = int(os.environ.get("PORT", 10000))
-    site = web.TCPSite(runner, "0.0.0.0", port)
+    site = web.TCPSite(r, "0.0.0.0", port)
     await site.start()
 
 async def main():
-    # Запускаем и веб-сервер, и polling бота
     await start_web_server()
     await dp.start_polling(bot)
 
