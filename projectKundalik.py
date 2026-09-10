@@ -2,15 +2,15 @@ import asyncio
 import os
 from aiogram import Bot, Dispatcher, F
 from aiogram.types import Message, FSInputFile, ReplyKeyboardMarkup, KeyboardButton
-from aiogram.filters import CommandStart
+from aiogram.filters import CommandStart, Command
+from aiohttp import web
 
-# BotFather'дан олинган токенни шу ерга қўйинг
 TOKEN = "8717230475:AAGKwQxqqfMhwVq8f1kG01AAOKKIpvxOu4c"
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
-# Ҳафта кунлари тугмалари (клавиатура)
+# Klaviatura
 keyboard = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text="Dushanba"), KeyboardButton(text="Seshanba")],
@@ -20,7 +20,7 @@ keyboard = ReplyKeyboardMarkup(
     resize_keyboard=True
 )
 
-# Kun nomlarini rasm nomlari bilan bog'lash
+# Fayllar xaritasi
 DAYS_MAP = {
     "Dushanba": "dushanba.jpg",
     "Seshanba": "seshanba.jpg",
@@ -33,30 +33,49 @@ DAYS_MAP = {
 @dp.message(CommandStart())
 async def cmd_start(message: Message):
     await message.answer(
-        "Assalomu alaykum! Dars jadvalini ko'rish uchun kerakli kunni tanlang:",
+        "Assalomu alaykum! Dars jadvalini ko'rish uchun kerakli kunni tanlang yoki buyruq yuboring (masalan: /dushanba):",
         reply_markup=keyboard
     )
 
-# Тугма босилганда расмни юбориш
 @dp.message(F.text.in_(DAYS_MAP.keys()))
+@dp.message(Command(commands=["dushanba", "seshanba", "chorshanba", "payshanba", "juma", "shanba"]))
 async def send_schedule(message: Message):
-    day_name = message.text
-    image_file = DAYS_MAP[day_name]
-    
-    # 'img' папкаси ичидаги расмга йўл
-    photo_path = os.path.join("img", image_file)
-    
-    if os.path.exists(photo_path):
-        photo = FSInputFile(photo_path)
-        await message.answer_photo(
-            photo=photo,
-            caption=f"📌 **{day_name} kungi dars jadvali**",
-            parse_mode="Markdown"
-        )
+    if message.text.startswith('/'):
+        raw_cmd = message.text.split('@')[0].replace('/', '')
+        day_name = raw_cmd.capitalize()
     else:
-        await message.answer(f"⚠️ {day_name} kuni uchun rasm topilmadi! (`img/{image_file}` faylini tekshiring)")
+        day_name = message.text
+
+    if day_name in DAYS_MAP:
+        image_file = DAYS_MAP[day_name]
+        photo_path = os.path.join("img", image_file)
+        
+        if os.path.exists(photo_path):
+            photo = FSInputFile(photo_path)
+            await message.answer_photo(
+                photo=photo,
+                caption=f"📌 **{day_name} kungi dars jadvali**",
+                parse_mode="Markdown"
+            )
+        else:
+            await message.answer(f"⚠️ {day_name} kuni uchun rasm topilmadi! (`img/{image_file}` faylini tekshiring)")
+
+# Простейший веб-сервер для удовлетворения требований Render Web Service
+async def handle(request):
+    return web.Response(text="Bot is running!")
+
+async def start_web_server():
+    app = web.Application()
+    app.router.add_get('/', handle)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    port = int(os.environ.get("PORT", 10000))
+    site = web.TCPSite(runner, "0.0.0.0", port)
+    await site.start()
 
 async def main():
+    # Запускаем и веб-сервер, и polling бота
+    await start_web_server()
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
